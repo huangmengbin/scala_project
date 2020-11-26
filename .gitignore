@@ -1,2 +1,7 @@
 *.class
 *.log
+data
+out
+.idea
+*.csv
+*.txt
