@@ -21,7 +21,7 @@ object Main {
     val mostImportantMerits: Seq[String] = Array(HIGH, TURN_OVER_RATE, PERCENT, VOLUME, PE, PB).toList
     val mostImportantIndexes: Seq[Int] = mostImportantMerits.map(s=>headToIndex(s))
 
-    private var sharesMap:mutable.Map[String, Shares] = mutable.Map()
+    var sharesMap:mutable.Map[String, Shares] = mutable.Map()
     private var sectorMap:mutable.Map[String, Sector] = mutable.Map()
 
 
@@ -62,19 +62,14 @@ object Main {
             val stock_code = myGet(line, STOCK_CODE)
             val sectorCode = getSectorCode(stock_code)
 
-            if(!sharesMap.contains(stock_code)){
-                sharesMap += (stock_code->new Shares(stock_code))
-            }
-            sharesMap(stock_code).push(line)
-
             if(!sectorMap.contains(sectorCode)){
-                sectorMap += (sectorCode->new Sector(sectorCode))
+                sectorMap += (sectorCode->new Sector(sectorCode))//注意new里面传入的是sectorCode
             }
-            sectorMap(sectorCode).push(line)
+            sectorMap(sectorCode).push(line, stock_code)//注意push里面传入的是stock_code
 
         }
 
-//        print("{\n"+sharesMap.map(i=>i._1+":"+i._2.toString).mkString("{",",","}")+"\n}")
+//            print("{\n"+sharesMap.map(i=>i._1+":"+i._2.toString).mkString("{",",","}")+"\n}")
 //            var newlines: Seq[Seq[String]] = lines.map(line =>mostImportantIndexes.map(ptr=>line(ptr) ) )
 //            newlines.foreach(s=>println(s.mkString(",")))
 //
