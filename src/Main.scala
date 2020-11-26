@@ -4,8 +4,10 @@ import scala.io.{BufferedSource, Source}
   */
 object Main {
 
-  private val headsList: Seq[String] = "timestamp,volume,open,high,low,close,chg,percent,turnoverrate,amount,volume_post,amount_post,pe,pb,ps,pcf,market_capital,balance,hold_volume_cn,hold_ratio_cn,net_volume_cn,hold_volume_hk,hold_ratio_hk,net_volume_hk".split(",").toList
-  private val headToIndex: Map[String, Int] = Array.range(0, headsList.length).map(i => (headsList(i), i)).toMap
+  val headsList: Seq[String] = "timestamp,volume,open,high,low,close,chg,percent,turnoverrate,amount,volume_post,amount_post,pe,pb,ps,pcf,market_capital,balance,hold_volume_cn,hold_ratio_cn,net_volume_cn,hold_volume_hk,hold_ratio_hk,net_volume_hk".split(",").toList
+  val headToIndex: Map[String, Int] = Array.range(0, headsList.length).map(i => (headsList(i), i)).toMap
+
+  val TIME_STAMP = "timestamp"
 
   val HIGH = "high"//最高价
   val TURN_OVER_RATE = "turnoverrate"//周转率
@@ -40,6 +42,7 @@ object Main {
 
 
     lines.foreach(println)
+
 
   }
 
