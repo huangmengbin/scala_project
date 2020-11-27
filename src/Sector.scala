@@ -1,4 +1,6 @@
-import Main.{headsList, mostImportantIndexes, sharesMap}
+import Main.{STOCK_CODE, TIME_STAMP, headsList, mostImportantIndexes, myGet, sharesMap}
+
+import scala.collection.mutable
 
 /**
   * @author hmb
@@ -7,38 +9,80 @@ import Main.{headsList, mostImportantIndexes, sharesMap}
   */
 class Sector {
 
-    val MAX_INT: Int = 30
+    val MAX_SIZE: Int = 30
     var sector_code: String = ""
 
-    var allSharesMessages : Map[Long, Map[String, Seq[String]]] = Map()
+    var allSharesMessages : mutable.Map[Long, mutable.Map[String, Seq[String]]] = mutable.Map()
     //每一个时间戳对应一个小map：股票编号->股票各种值（原始)
 
 
-    var totalSumMessages : Map[Long, Map[String, String]] = Map()
-    //记录总值，总不能只保留平均值，每次来一个数据乘了再除吧.
-    var averageMessages : Map[Long, Map[String, String]] = Map()
+    var totalSumMessages : mutable.Map[Long, Map[String, String]] =mutable.Map()
+    //记录总值，说不定有缓存的作用，使得平均值算的更快。暂时还没用
+    //不再有股票编号这个信息了，小Map的key代表了属性,也就是head
+    var averageMessages : mutable.Map[Long, Map[String, String]] = mutable.Map()
     //板块和股票的不同点，就是它不一定是原始数据，很可能是累加之后再平均得到的
     //可以考虑加权平均
     //属性只选择有意义的那些
+    private var minimalTime:Long = Long.MaxValue
 
 
-    var sharesList : Seq[Shares] = Seq()    //这个有待讨论，如何维护此其中最好的股票
+    var sharesSet : mutable.Set[Shares] = mutable.Set()    //这个有待讨论，如何维护此其中最好的股票
 
     def this(string: String){
         this()
         sector_code =string
     }
 
+
+
     def push(my_seq:Seq[String], stock_code: String): Unit = {
 
         if(!sharesMap.contains(stock_code)){
             sharesMap += (stock_code->new Shares(stock_code))
         }
-        sharesMap(stock_code).push(my_seq)
+        var shares: Shares = sharesMap(stock_code)
+        this.sharesSet += shares
+        val shouldUpdate: Boolean = shares.push(my_seq)
+        if(!shouldUpdate){
+            return
+        }
+        //根据以上的判定，一定不会有重复数据发生了。比如说更旧的
 
+        val currentTime: Long = myGet(my_seq, TIME_STAMP).toLong
+        if(!allSharesMessages.contains(currentTime)){
+            allSharesMessages += (currentTime -> mutable.Map())
+            totalSumMessages += (currentTime -> Map())
+            averageMessages += (currentTime -> Map())
+        }
+        if(allSharesMessages.size > MAX_SIZE){
+            allSharesMessages = allSharesMessages.filter(i=>i._1!=minimalTime)
+            totalSumMessages = totalSumMessages.filter(i=>i._1!=minimalTime)
+            averageMessages = averageMessages.filter(i=>i._1!=minimalTime)
+        }
+        minimalTime = allSharesMessages.keys.min
 
-        val my_map: Map[String, String] = mostImportantIndexes.map(i => ( headsList(i), my_seq(i) )).toMap
+        val currentTuple: (String, Seq[String]) = (stock_code , my_seq)
+        allSharesMessages(currentTime) += currentTuple
+        val historyTotal = totalSumMessages(currentTime)//没用，测试代码
+        val historyAverage = averageMessages(currentTime)//没用，测试代码
+        totalSumMessages(currentTime) = historyAverage//没用，测试代码
+        averageMessages(currentTime) = historyTotal//没用，测试代码
+
+//        for (tempSeq: Seq[String] <-allSharesMessages(currentTime).values){
+//            var a: Map[String, String] =mostImportantIndexes.map(i=>(headsList(i)-> tempSeq(i))).toMap
+//        }
+        var a: Iterable[Map[String, String]] = allSharesMessages(currentTime).values.map( (tempSeq: Seq[String]) =>
+    (mostImportantIndexes.map(ptr=>(headsList(ptr)-> tempSeq(ptr)))/*:+(TIME_STAMP,myGet(tempSeq, TIME_STAMP)):+(STOCK_CODE,myGet(tempSeq, STOCK_CODE))*/)
+        .toMap)
+        println(a)
+        println()
+
+        //println(allSharesMessages.size)
+
     }
+
+
+
 
     //todo
     // 要求：要转成json格式的字符串
