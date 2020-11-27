@@ -1,4 +1,4 @@
-import Main.{STOCK_CODE, TIME_STAMP, headsList, mostImportantIndexes, myGet, sharesMap}
+import Main._
 
 import scala.collection.mutable
 
@@ -19,7 +19,7 @@ class Sector {
     var totalSumMessages : mutable.Map[Long, Map[String, String]] =mutable.Map()
     //记录总值，说不定有缓存的作用，使得平均值算的更快。暂时还没用
     //不再有股票编号这个信息了，小Map的key代表了属性,也就是head
-    var averageMessages : mutable.Map[Long, Map[String, String]] = mutable.Map()
+    var averageMessages : mutable.Map[Long, Map[String, Double]] = mutable.Map()
     //板块和股票的不同点，就是它不一定是原始数据，很可能是累加之后再平均得到的
     //可以考虑加权平均
     //属性只选择有意义的那些
@@ -65,17 +65,19 @@ class Sector {
         allSharesMessages(currentTime) += currentTuple
         val historyTotal = totalSumMessages(currentTime)//没用，测试代码
         val historyAverage = averageMessages(currentTime)//没用，测试代码
-        totalSumMessages(currentTime) = historyAverage//没用，测试代码
-        averageMessages(currentTime) = historyTotal//没用，测试代码
 
 //        for (tempSeq: Seq[String] <-allSharesMessages(currentTime).values){
 //            var a: Map[String, String] =mostImportantIndexes.map(i=>(headsList(i)-> tempSeq(i))).toMap
 //        }
-        var a: Iterable[Map[String, String]] = allSharesMessages(currentTime).values.map( (tempSeq: Seq[String]) =>
-    (mostImportantIndexes.map(ptr=>(headsList(ptr)-> tempSeq(ptr)))/*:+(TIME_STAMP,myGet(tempSeq, TIME_STAMP)):+(STOCK_CODE,myGet(tempSeq, STOCK_CODE))*/)
-        .toMap)
-        println(a)
-        println()
+        val currentTotal: Map[String, String] = allSharesMessages(currentTime).values.map((tempSeq: Seq[String]) =>
+            (mostImportantIndexes.map(ptr=>(headsList(ptr)-> tempSeq(ptr)))/*:+(TIME_STAMP,myGet(tempSeq, TIME_STAMP)):+(STOCK_CODE,myGet(tempSeq, STOCK_CODE))*/)
+            .toMap).reduce( (map1,map2) => {
+            map2.map(t => t._1 -> (t._2.toDouble + map1(t._1).toDouble).toString)
+        })
+        val currentAverage: Map[String, Double] = currentTotal.map(t=> (t._1 -> t._2.toDouble / allSharesMessages.size))
+
+        totalSumMessages(currentTime) = currentTotal
+        averageMessages(currentTime) = currentAverage
 
         //println(allSharesMessages.size)
 
@@ -87,7 +89,7 @@ class Sector {
     //todo
     // 要求：要转成json格式的字符串
     override def toString: String = {
-        super.toString
+        averageMessages.mkString("{",",\n","}")
     }
 
 }

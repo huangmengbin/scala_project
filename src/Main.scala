@@ -69,7 +69,13 @@ object Main {
 
         }
 
-//            print("{\n"+sharesMap.map(i=>i._1+":"+i._2.toString).mkString("{",",","}")+"\n}")
+//        print("{\n"+sharesMap.map(i=>i._1+":"+i._2.toString).mkString("{",",","}")+"\n}")
+        println(sectorMap.mkString("{",",","}"))
+
+
+
+//
+//
 //            var newlines: Seq[Seq[String]] = lines.map(line =>mostImportantIndexes.map(ptr=>line(ptr) ) )
 //            newlines.foreach(s=>println(s.mkString(",")))
 //
