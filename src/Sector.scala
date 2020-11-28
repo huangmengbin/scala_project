@@ -23,6 +23,49 @@ class Sector {
     //板块和股票的不同点，就是它不一定是原始数据，很可能是累加之后再平均得到的
     //可以考虑加权平均
     //属性只选择有意义的那些
+
+    var finalSectorMetricMap: mutable.Map[Long, Double] = mutable.Map()
+
+    private def updateSectorMetricMap(currentTime:Long): Boolean = {
+        val validMap = sectorMap
+            .filter(tp=>tp._2.averageMessages.contains(currentTime))
+            .filter(tp=>tp._2.averageMessages(currentTime)(PE)>0)
+        val allPE_List: mutable.Iterable[Double] = validMap
+            .map(tp=>tp._2.averageMessages(currentTime)(PE))
+
+        if (allPE_List.isEmpty){
+            false
+        }
+        else{
+            val maxDistance: Double = allPE_List.max - allPE_List.min + 1
+            val avgPE: Double = allPE_List.sum / allPE_List.size
+            validMap.keys.foreach(stock_code=> {
+                val currentPE = validMap(stock_code).averageMessages(currentTime)(PE)
+                val currentTurnOverRate = validMap(stock_code).averageMessages(currentTime)(TURN_OVER_RATE)
+                validMap(stock_code).finalSectorMetricMap(currentTime) =
+                    if (currentPE >= avgPE) {
+                        (currentPE-avgPE)/maxDistance*6.7*currentTurnOverRate-currentPE*0.1+67
+                    }
+                    else {
+                        (avgPE-currentPE)/maxDistance*2.33*currentTurnOverRate-currentPE*0.1+67
+                    }
+                if(validMap(stock_code).finalSectorMetricMap.size>MAX_SIZE){
+                    validMap(stock_code).finalSectorMetricMap.remove(validMap(stock_code).finalSectorMetricMap.keys.min)
+                }
+            })
+            true
+        }
+    }
+
+
+
+    def getLatestAverageMessageString: String ={
+        if (averageMessages.isEmpty)return "{}"
+        val maxTime: Long = averageMessages.keys.max
+        val latestMap: Map[String, Double] = averageMessages(maxTime)
+        Map_StringDouble_toString(latestMap)
+    }
+
     private var minimalTime:Long = Long.MaxValue
 
 
@@ -35,7 +78,7 @@ class Sector {
 
 
 
-    def push(my_seq:Seq[String], stock_code: String): Unit = {
+    def push(my_seq:Seq[String], stock_code: String): Boolean = {
 
         if(!sharesMap.contains(stock_code)){
             sharesMap += (stock_code->new Shares(stock_code))
@@ -44,7 +87,7 @@ class Sector {
         this.sharesSet += shares
         val shouldUpdate: Boolean = shares.push(my_seq)
         if(!shouldUpdate){
-            return
+            return false
         }
         //根据以上的判定，一定不会有重复数据发生了。比如说更旧的
 
@@ -55,16 +98,14 @@ class Sector {
             averageMessages += (currentTime -> Map())
         }
         if(allSharesMessages.size > MAX_SIZE){
-            allSharesMessages = allSharesMessages.filter(i=>i._1!=minimalTime)
-            totalSumMessages = totalSumMessages.filter(i=>i._1!=minimalTime)
-            averageMessages = averageMessages.filter(i=>i._1!=minimalTime)
+            allSharesMessages.remove(minimalTime)
+            totalSumMessages.remove(minimalTime)
+            averageMessages.remove(minimalTime)
         }
         minimalTime = allSharesMessages.keys.min
 
         val currentTuple: (String, Seq[String]) = (stock_code , my_seq)
         allSharesMessages(currentTime) += currentTuple
-        val historyTotal = totalSumMessages(currentTime)//没用，测试代码
-        val historyAverage = averageMessages(currentTime)//没用，测试代码
 
 //        for (tempSeq: Seq[String] <-allSharesMessages(currentTime).values){
 //            var a: Map[String, String] =mostImportantIndexes.map(i=>(headsList(i)-> tempSeq(i))).toMap
@@ -79,8 +120,9 @@ class Sector {
         totalSumMessages(currentTime) = currentTotal
         averageMessages(currentTime) = currentAverage
 
-        //println(allSharesMessages.size)
+        updateSectorMetricMap(currentTime)
 
+        true
     }
 
 
@@ -89,7 +131,9 @@ class Sector {
     //todo
     // 要求：要转成json格式的字符串
     override def toString: String = {
-        averageMessages.mkString("{",",\n","}")
+        averageMessages.map(tp1=>"\""+tp1._1+"\""+":"
+            +tp1._2.map(tp2=>"\""+tp2._1+"\""+":"+"\""+tp2._2+"\"").mkString("{\n",",\n","\n}")
+        ).mkString("{\n",",\n","\n}")
     }
 
 }

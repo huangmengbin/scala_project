@@ -1,4 +1,4 @@
-import Main.{TIME_STAMP, headsList, myGet}
+import Main.{Map_StringString_toString, TIME_STAMP, headsList, myGet}
 
 /**
   * @author hmb 股票
@@ -11,6 +11,8 @@ class Shares {
     private def getUpdatedAllTimes: Seq[Long] = sharesMessages.map(each_seq=>myGet(each_seq, TIME_STAMP)).map(_.toLong)//用set可以优化
     private var allTimes: Seq[Long] = getUpdatedAllTimes
     private var minimalTime:Long = 0
+
+    var finalSharesMetric: Double = 0.0       //最终指标，放在这里
 
     def this(string: String){
         this()
@@ -49,7 +51,7 @@ class Shares {
         val obj: Map[String, Map[String, String]] = sharesMessages.map(each_seq=>
             myGet(each_seq, TIME_STAMP) -> headsList.map( head=> head->myGet(each_seq,head) ).toMap
         ).toMap
-        obj.map(i=>i._1+":"+i._2.mkString("{\n\t\t",",\n\t\t","\n\t}")).mkString("{\n\t",",\n\t","\n}\n").replace("->",":")
+        obj.map(i=>"\""+i._1+"\""+":"+Map_StringString_toString(i._2)).mkString("{\n\t",",\n\t","\n}").replace("->",":")
         //org.json4s.jackson.Serialization.write(obj)
     }
 

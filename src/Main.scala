@@ -1,5 +1,7 @@
-import scala.io.{BufferedSource, Source}
+import java.io.{File, FileWriter}
+
 import scala.collection.mutable
+import scala.io.{BufferedSource, Source}
 /**
   * @author hmb
   */
@@ -8,8 +10,8 @@ object Main {
     val headsList: Seq[String] = "timestamp,volume,open,high,low,close,chg,percent,turnoverrate,amount,volume_post,amount_post,pe,pb,ps,pcf,market_capital,balance,hold_volume_cn,hold_ratio_cn,net_volume_cn,hold_volume_hk,hold_ratio_hk,net_volume_hk,stock_code".split(",").toList
     val headToIndex: Map[String, Int] = Array.range(0, headsList.length).map(i => (headsList(i), i)).toMap
 
-    val TIME_STAMP = "timestamp"
-    val STOCK_CODE = "stock_code"
+    val TIME_STAMP = "timestamp"//冗余数据1
+    val STOCK_CODE = "stock_code"//冗余数据2
 
     val HIGH = "high"//最高价
     val TURN_OVER_RATE = "turnoverrate"//周转率
@@ -18,16 +20,39 @@ object Main {
     val PB = "pb"//市盈
     val PE = "pe"//市净
 
+    val BEST_SECTOR_PATH = "filesToFrontEnd/bestSector.json"
+    val BEST_SHARES_PATH = "filesToFrontEnd/bestShares.json"
+    val FINAL_METRICS_PATH = "filesToFrontEnd/finalMetricOfAllSectors.json"
+    val LATEST_MESSAGE_PATH = "filesToFrontEnd/latestMsgOfAllSectors.json"
+
     val mostImportantMerits: Seq[String] = Array(HIGH, TURN_OVER_RATE, PERCENT, VOLUME, PE, PB).toList
     val mostImportantIndexes: Seq[Int] = mostImportantMerits.map(s=>headToIndex(s))
 
     var sharesMap:mutable.Map[String, Shares] = mutable.Map()
-    private var sectorMap:mutable.Map[String, Sector] = mutable.Map()
+    var sectorMap:mutable.Map[String, Sector] = mutable.Map()
 
-
+    def Map_StringDouble_toString(myMap:Map[String, Double]): String ={
+        myMap.map(t=>"\""+t._1+"\""+":"+"\""+t._2.toString+"\"").mkString("{",",","}")
+    }
+    def Map_StringString_toString(myMap:Map[String, String]): String ={
+        myMap.map(t=>"\""+t._1+"\""+":"+"\""+t._2+"\"").mkString("{",",","}")
+    }
+    def Map_Long2Double_toString(myMap:mutable.Map[Long, Double]): String ={
+        myMap.map(t=>"\""+t._1.toString+"\""+":"+"\""+t._2.toString+"\"").mkString("{",",","}")
+    }
     def myRead(path:String) :Seq[String] = {
         val src: BufferedSource = Source.fromFile(path, "UTF-8")
         src.getLines().toList
+    }
+
+    def myWrite(path:String, data:String) :Unit = {
+        println(data)
+        val printer = (new FileWriter(new File(path)))
+        printer.write(data
+//            .replace("\n","")
+//            +"\n"
+        )
+        printer.close()
     }
 
     /**
@@ -38,6 +63,7 @@ object Main {
     def myGet(seq: Seq[String], string: String): String ={
         seq(headToIndex(string))
     }
+
     /**
       * 股票编号 -> 所在模块代号
       * 方便以后的变更。万一股票代号是不等长的呢？
@@ -45,6 +71,18 @@ object Main {
     def getSectorCode(block_code:String): String ={
         block_code.substring(0,4)
     }
+
+    def getLatestMessageOfAllSectorsString: String = {
+        sectorMap.map(t=>"\""+t._1+"\""+":"+t._2.getLatestAverageMessageString).mkString("{\n",",\n","\n}")
+    }
+
+
+    def getFinalMetricOfAllSectorsString: String = {
+        sectorMap.map(t=>"\""+t._1+"\""+":"+Map_Long2Double_toString(t._2.finalSectorMetricMap)).mkString("{\n",",\n","\n}")
+    }
+
+
+
 
     def main(hmb666:Array[String]): Unit ={
         //    val path:String = ""
@@ -55,8 +93,10 @@ object Main {
         //    headToIndex.foreach(println)
         //    mostImportantIndexes.foreach(println)
 
-        val lines: Seq[Seq[String]] = myRead("SZ300008-1606154245000.csv")
+        val lines: Seq[Seq[String]] = myRead("testData.csv")
             .map(line=>line.split(",", -1).map(s=> if (s.isEmpty) "0" else s).toList)
+
+        var shouldUpdate: Boolean = false   //我不知道这样会不会有不输出的问题。鬼知道传入的数据是什么形式的
 
         for (line: Seq[String] <- lines){
             val stock_code = myGet(line, STOCK_CODE)
@@ -65,13 +105,17 @@ object Main {
             if(!sectorMap.contains(sectorCode)){
                 sectorMap += (sectorCode->new Sector(sectorCode))//注意new里面传入的是sectorCode
             }
-            sectorMap(sectorCode).push(line, stock_code)//注意push里面传入的是stock_code
-
+            shouldUpdate = sectorMap(sectorCode).push(line, stock_code)   || shouldUpdate//注意push里面传入的是stock_code
         }
 
-//        print("{\n"+sharesMap.map(i=>i._1+":"+i._2.toString).mkString("{",",","}")+"\n}")
-        println(sectorMap.mkString("{",",","}"))
+        if (!shouldUpdate){
+            return
+        }
 
+
+
+//        print("{\n"+sharesMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{",",","}")+"\n}")
+//        println(getLatestMessageOfAllSectorsString)
 
 
 //
@@ -82,6 +126,10 @@ object Main {
 //
 //            lines.foreach(println)
 //
+        myWrite(BEST_SHARES_PATH, sharesMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
+        myWrite(BEST_SECTOR_PATH, sectorMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
+        myWrite(LATEST_MESSAGE_PATH, getLatestMessageOfAllSectorsString)
+        myWrite(FINAL_METRICS_PATH, getFinalMetricOfAllSectorsString)
 
     }
 
