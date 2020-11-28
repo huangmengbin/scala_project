@@ -14,7 +14,7 @@ object Json4sDemo {
     }
 
 
-    def main(args: Array[String]): Unit = {
+    def __main__(args: Array[String]): Unit = {
 
         val user1 = User(1, name = "李明", 12)
         val user2 = User(2, name = "张杰", 43)
