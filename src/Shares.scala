@@ -1,4 +1,4 @@
-import Main.{Map_StringString_toString, TIME_STAMP, headsList, myGet}
+import Main._
 
 /**
   * @author hmb 股票
@@ -14,6 +14,12 @@ class Shares {
 
     var finalSharesMetric: Double = 0.0       //最终指标，放在这里
 
+    def updateFinalSharesMetric() : Unit = {
+        val avgPERCENT = sharesMessages.map(eachSeq=>myGet(eachSeq,PERCENT).toDouble).sum / sharesMessages.size
+        val avgPB = sharesMessages.map(eachSeq=>myGet(eachSeq,PB).toDouble).sum / sharesMessages.size
+        finalSharesMetric = avgPERCENT*100 - avgPB
+    }
+
     def this(string: String){
         this()
         block_code =string
@@ -21,7 +27,6 @@ class Shares {
 
     def push(my_seq:Seq[String]): Boolean = {
         val currentTime: Long = myGet(my_seq, TIME_STAMP).toLong
-
         if(sharesMessages.length >= MAX_SIZE) {
             if (currentTime <= minimalTime) {
                 //我们的数据更旧，不操作
@@ -40,6 +45,8 @@ class Shares {
         sharesMessages = sharesMessages :+ my_seq
         allTimes = getUpdatedAllTimes//优化了，就必须要同步更新了
         minimalTime = allTimes.min//优化了，就必须要同步更新了
+
+        updateFinalSharesMetric()
         true
     }
 

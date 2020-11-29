@@ -26,6 +26,8 @@ class Sector {
 
     var finalSectorMetricMap: mutable.Map[Long, Double] = mutable.Map()
 
+    var finalSectorMetricAvg: Double = 0.0
+
     private def updateSectorMetricMap(currentTime:Long): Boolean = {
         val validMap = sectorMap
             .filter(tp=>tp._2.averageMessages.contains(currentTime))
@@ -53,6 +55,8 @@ class Sector {
                     validMap(stock_code).finalSectorMetricMap.remove(validMap(stock_code).finalSectorMetricMap.keys.min)
                 }
             })
+            //更新均值
+            finalSectorMetricAvg = finalSectorMetricMap.values.sum / finalSectorMetricMap.size
             true
         }
     }

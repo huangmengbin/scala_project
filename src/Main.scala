@@ -20,10 +20,20 @@ object Main {
     val PB = "pb"//市盈
     val PE = "pe"//市净
 
-    val BEST_SECTOR_PATH = "filesToFrontEnd/bestSector.json"
-    val BEST_SHARES_PATH = "filesToFrontEnd/bestShares.json"
-    val FINAL_METRICS_PATH = "filesToFrontEnd/finalMetricOfAllSectors.json"
-    val LATEST_MESSAGE_PATH = "filesToFrontEnd/latestMsgOfAllSectors.json"
+
+
+
+    val WINDOWS = "windows"
+    val LINUX = "linux"
+    val environment: String = WINDOWS
+    val PRE_PATH: String = if (environment==WINDOWS) "" else "/"
+
+    //路径
+    val INPUT_PATH = "testData.csv"
+    val BEST_SECTOR_PATH: String = PRE_PATH + "output/bestSector.json"
+    val BEST_SHARES_PATH: String = PRE_PATH + "output/bestShares.json"
+    val FINAL_METRICS_PATH: String = PRE_PATH + "output/finalMetricOfAllSectors.json"
+    val LATEST_MESSAGE_PATH: String = PRE_PATH + "output/latestMsgOfAllSectors.json"
 
     val mostImportantMerits: Seq[String] = Array(HIGH, TURN_OVER_RATE, PERCENT, VOLUME, PE, PB).toList
     val mostImportantIndexes: Seq[Int] = mostImportantMerits.map(s=>headToIndex(s))
@@ -46,7 +56,7 @@ object Main {
     }
 
     def myWrite(path:String, data:String) :Unit = {
-        println(data)
+        //println(data)
         val printer = (new FileWriter(new File(path)))
         printer.write(data
 //            .replace("\n","")
@@ -72,6 +82,18 @@ object Main {
         block_code.substring(0,4)
     }
 
+    def getBestSectorString: String = {
+        val maxNum = sectorMap.map(_._2.finalSectorMetricAvg).max
+        val tuple: (String, Sector) = sectorMap.filter(_._2.finalSectorMetricAvg == maxNum).head
+        "{"+"\""+tuple._1+"\""+":"+tuple._2.toString+"}"
+    }
+
+    def getBestSharesString: String = {
+        val maxNum = sharesMap.map(_._2.finalSharesMetric).max
+        val tuple: (String, Shares) = sharesMap.filter(_._2.finalSharesMetric == maxNum).head
+        "{"+"\""+tuple._1+"\""+":"+tuple._2.toString+"}"
+    }
+
     def getLatestMessageOfAllSectorsString: String = {
         sectorMap.map(t=>"\""+t._1+"\""+":"+t._2.getLatestAverageMessageString).mkString("{\n",",\n","\n}")
     }
@@ -93,7 +115,7 @@ object Main {
         //    headToIndex.foreach(println)
         //    mostImportantIndexes.foreach(println)
 
-        val lines: Seq[Seq[String]] = myRead("testData.csv")
+        val lines: Seq[Seq[String]] = myRead(INPUT_PATH)
             .map(line=>line.split(",", -1).map(s=> if (s.isEmpty) "0" else s).toList)
 
         var shouldUpdate: Boolean = false   //我不知道这样会不会有不输出的问题。鬼知道传入的数据是什么形式的
@@ -126,8 +148,14 @@ object Main {
 //
 //            lines.foreach(println)
 //
-        myWrite(BEST_SHARES_PATH, sharesMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
-        myWrite(BEST_SECTOR_PATH, sectorMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
+
+//        myWrite(BEST_SHARES_PATH, sharesMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
+//        myWrite(BEST_SECTOR_PATH, sectorMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
+
+
+        myWrite(BEST_SECTOR_PATH, getBestSectorString)
+        myWrite(BEST_SHARES_PATH, getBestSharesString)
+
         myWrite(LATEST_MESSAGE_PATH, getLatestMessageOfAllSectorsString)
         myWrite(FINAL_METRICS_PATH, getFinalMetricOfAllSectorsString)
 
