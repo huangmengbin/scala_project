@@ -1,5 +1,9 @@
 import java.io.{File, FileWriter}
 
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.dstream.DStream
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
 import scala.collection.mutable
 import scala.io.{BufferedSource, Source}
 /**
@@ -19,9 +23,6 @@ object Main {
     val VOLUME = "volume"//成交量
     val PB = "pb"//市盈
     val PE = "pe"//市净
-
-
-
 
     val WINDOWS = "windows"
     val LINUX = "linux"
@@ -50,13 +51,14 @@ object Main {
     def Map_Long2Double_toString(myMap:mutable.Map[Long, Double]): String ={
         myMap.map(t=>"\""+t._1.toString+"\""+":"+"\""+t._2.toString+"\"").mkString("{",",","}")
     }
+
     def myRead(path:String) :Seq[String] = {
         val src: BufferedSource = Source.fromFile(path, "UTF-8")
         src.getLines().toList
     }
 
     def myWrite(path:String, data:String) :Unit = {
-        //println(data)
+        println(data)
         val printer = (new FileWriter(new File(path)))
         printer.write(data
 //            .replace("\n","")
@@ -105,7 +107,6 @@ object Main {
 
 
 
-
     def main(hmb666:Array[String]): Unit ={
         //    val path:String = ""
         //    val ssc = new StreamingContext(sc, Seconds(5))
@@ -115,24 +116,75 @@ object Main {
         //    headToIndex.foreach(println)
         //    mostImportantIndexes.foreach(println)
 
-        val lines: Seq[Seq[String]] = myRead(INPUT_PATH)
-            .map(line=>line.split(",", -1).map(s=> if (s.isEmpty) "0" else s).toList)
+        val sparkConf = new SparkConf().setAppName("WordCountStreaming").setMaster("local[2]")//设置为本地运行模式，2个线程，一个监听，另一个处理数据
+        val ssc = new StreamingContext(sparkConf, Seconds(2))// 时间间隔为20秒
+        var wxblines: DStream[String] = ssc.textFileStream("hdfs://hadMaster:9000/myTask")  //这里采用本地文件，当然你也可以采用HDFS文件
+        val words: DStream[String] = wxblines.flatMap(_.split("\n"))
+        words.foreachRDD(rdd_String=>{
 
-        var shouldUpdate: Boolean = false   //我不知道这样会不会有不输出的问题。鬼知道传入的数据是什么形式的
+            //整个程序的开始-hmb
 
-        for (line: Seq[String] <- lines){
-            val stock_code = myGet(line, STOCK_CODE)
-            val sectorCode = getSectorCode(stock_code)
+            var shouldUpdate: Boolean = false
 
-            if(!sectorMap.contains(sectorCode)){
-                sectorMap += (sectorCode->new Sector(sectorCode))//注意new里面传入的是sectorCode
-            }
-            shouldUpdate = sectorMap(sectorCode).push(line, stock_code)   || shouldUpdate//注意push里面传入的是stock_code
-        }
+            rdd_String.foreach(
+                longString => {
 
-        if (!shouldUpdate){
-            return
-        }
+                    val line: List[String] = longString.split(",", -1).map(s=> if (s.isEmpty) "0" else s).toList
+                    val stock_code = myGet(line, STOCK_CODE)
+                    val sectorCode = getSectorCode(stock_code)
+
+                    if (!sectorMap.contains(sectorCode)) {
+                        sectorMap += (sectorCode -> new Sector(sectorCode)) //注意new里面传入的是sectorCode
+                    }
+
+                    shouldUpdate = sectorMap(sectorCode).push(line, stock_code) || shouldUpdate //注意push里面传入的是stock_code
+                    if (shouldUpdate){
+                        myWrite(BEST_SECTOR_PATH, getBestSectorString)
+                        myWrite(BEST_SHARES_PATH, getBestSharesString)
+                        myWrite(LATEST_MESSAGE_PATH, getLatestMessageOfAllSectorsString)
+                        myWrite(FINAL_METRICS_PATH, getFinalMetricOfAllSectorsString)
+                    }
+
+                    //整个程序的结束-hmb
+                }
+
+
+        )})
+
+
+
+
+
+
+
+
+
+
+
+
+
+//
+//
+//        var __lines: Seq[String] = myRead(INPUT_PATH)
+//        var hmb_lines = __lines.map(line=>line.split(",", -1).map(s=> if (s.isEmpty) "0" else s).toList)
+//
+//        //
+//
+//        var shouldUpdate: Boolean = false   //我不知道这样会不会有不输出的问题。鬼知道传入的数据是什么形式的
+//
+//        hmb_lines.foreach((line: Seq[String]) => {
+//            val stock_code = myGet(line, STOCK_CODE)
+//            val sectorCode = getSectorCode(stock_code)
+//
+//            if (!sectorMap.contains(sectorCode)) {
+//                sectorMap += (sectorCode -> new Sector(sectorCode)) //注意new里面传入的是sectorCode
+//            }
+//            shouldUpdate = sectorMap(sectorCode).push(line, stock_code) || shouldUpdate //注意push里面传入的是stock_code
+//        })
+//
+//        if (!shouldUpdate){
+//            return
+//        }
 
 
 
@@ -153,12 +205,8 @@ object Main {
 //        myWrite(BEST_SECTOR_PATH, sectorMap.map(i=>"\""+i._1+"\""+":"+i._2.toString).mkString("{\n",",\n","\n}"))
 
 
-        myWrite(BEST_SECTOR_PATH, getBestSectorString)
-        myWrite(BEST_SHARES_PATH, getBestSharesString)
-
-        myWrite(LATEST_MESSAGE_PATH, getLatestMessageOfAllSectorsString)
-        myWrite(FINAL_METRICS_PATH, getFinalMetricOfAllSectorsString)
-
+        ssc.start()
+        ssc.awaitTermination()
     }
 
 }
